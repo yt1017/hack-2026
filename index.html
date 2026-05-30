@@ -571,41 +571,53 @@
 
     .substation-terminal {
       position: absolute;
-      width: 18%;
-      height: 18%;
+      width: 30%;
+      height: 24%;
       background: #050816;
       border: 2px solid var(--line);
       z-index: 12;
+      display: grid;
+      place-items: center;
+      font-size: clamp(6px, 0.9vmin, 9px);
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text);
+      text-shadow: 1px 1px 0 #000;
+      pointer-events: none;
     }
 
     .substation-terminal.input {
       border-color: var(--blue);
-      box-shadow: 0 0 8px rgba(116, 192, 252, 0.8);
+      color: var(--blue);
+      border-radius: 999px;
+      box-shadow: 0 0 8px rgba(116, 192, 252, 0.9);
     }
 
     .substation-terminal.output {
       border-color: var(--green);
-      box-shadow: 0 0 8px rgba(99, 230, 190, 0.8);
+      color: var(--green);
+      border-radius: 2px;
+      box-shadow: 0 0 8px rgba(99, 230, 190, 0.9);
     }
 
     .substation-terminal.top {
-      left: 41%;
-      top: -8%;
+      left: 35%;
+      top: -12%;
     }
 
     .substation-terminal.right {
-      right: -8%;
-      top: 41%;
+      right: -17%;
+      top: 38%;
     }
 
     .substation-terminal.bottom {
-      left: 41%;
-      bottom: -8%;
+      left: 35%;
+      bottom: -12%;
     }
 
     .substation-terminal.left {
-      left: -8%;
-      top: 41%;
+      left: -17%;
+      top: 38%;
     }
 
     .power-house-wrap {
@@ -828,7 +840,7 @@
         <h1>レトロ電力パズル</h1>
         <p>風車・送電線・変電所をつないで家に電気を届けよう</p>
       </div>
-      <div class="top-badge">端子版</div>
+      <div class="top-badge">IN / OUT版</div>
     </header>
 
     <section class="status-row retro-panel">
@@ -908,8 +920,8 @@
         <button id="next-button" onclick="nextStage()" class="retro-button" disabled>次へ</button>
 
         <div class="help-text">
-          <div>青端子：風車側入力</div>
-          <div>緑端子：家側出力</div>
+          <div>IN：風車から入る</div>
+          <div>OUT：家へ出る</div>
           <div>手数・風車・容量・接続上限を確認</div>
           <div>盤面が大きい時は盤面内をスクロール</div>
         </div>
@@ -921,7 +933,7 @@
     </main>
 
     <div id="message" class="message-box retro-panel">
-      変電所の青端子に風車側、緑端子に家側の送電線をつないでください。
+      変電所の IN に風車側、OUT に家側の送電線をつないでください。
     </div>
   </div>
 
@@ -936,8 +948,8 @@
     const stages = [
       {
         difficulty: "入門",
-        title: "入門：端子の基本",
-        mission: "目標6。風3の場所に風車を置き、青端子と緑端子を送電線でつないでください。",
+        title: "入門：IN / OUTの基本",
+        mission: "目標6。風車からINへ、OUTから家へ送電線をつないでください。",
         size: 5,
         boardMin: 500,
         targetPower: 6,
@@ -969,7 +981,7 @@
       {
         difficulty: "簡単",
         title: "簡単：送電ロス",
-        mission: "目標8。風の強い場所と端子の向きを見て送電線を引いてください。",
+        mission: "目標8。IN側に風車、OUT側に家をつなぎ、送電ロスを抑えてください。",
         size: 5,
         boardMin: 520,
         targetPower: 8,
@@ -1001,7 +1013,7 @@
       {
         difficulty: "普通",
         title: "普通：広い盤面",
-        mission: "目標11。6×6の盤面です。端子位置と送電距離を両方考えてください。",
+        mission: "目標11。6×6の盤面です。IN / OUTの向きと送電距離を両方考えてください。",
         size: 6,
         boardMin: 600,
         targetPower: 11,
@@ -1035,7 +1047,7 @@
       {
         difficulty: "難しい",
         title: "難しい：2つの変電所",
-        mission: "目標15。7×7の盤面です。入力端子と出力端子の向きが重要です。",
+        mission: "目標15。7×7の盤面です。どのIN / OUTを使うかが重要です。",
         size: 7,
         boardMin: 690,
         targetPower: 15,
@@ -1072,7 +1084,7 @@
       {
         difficulty: "超難しい",
         title: "超難しい：大規模送電",
-        mission: "目標18。8×8の盤面です。端子、ロス、容量を同時に管理してください。",
+        mission: "目標18。8×8の盤面です。IN / OUT、ロス、容量を同時に管理してください。",
         size: 8,
         boardMin: 760,
         targetPower: 18,
@@ -1352,8 +1364,8 @@
     function createSubstationHTML(substation) {
       return `
         <div class="substation pointer-events-none">
-          <div class="substation-terminal input ${substation.input}"></div>
-          <div class="substation-terminal output ${substation.output}"></div>
+          <div class="substation-terminal input ${substation.input}">IN</div>
+          <div class="substation-terminal output ${substation.output}">OUT</div>
         </div>
       `;
     }
