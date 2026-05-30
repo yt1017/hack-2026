@@ -213,13 +213,13 @@
 
     .status-row {
       display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 5px;
       padding: 6px;
     }
 
     .status-card {
-      padding: 4px 3px;
+      padding: 4px 2px;
       text-align: center;
     }
 
@@ -232,7 +232,7 @@
     }
 
     .status-value {
-      font-size: clamp(12px, 1.45vw, 17px);
+      font-size: clamp(11px, 1.28vw, 16px);
       font-weight: 900;
       line-height: 1.2;
       white-space: nowrap;
@@ -843,6 +843,11 @@
       </div>
 
       <div class="status-card retro-card">
+        <div class="status-label">手数</div>
+        <div id="action-status" class="status-value">0 / 12</div>
+      </div>
+
+      <div class="status-card retro-card">
         <div class="status-label">風車</div>
         <div id="windmill-limit-status" class="status-value">0 / 2</div>
       </div>
@@ -905,7 +910,7 @@
         <div class="help-text">
           <div>青端子：風車側入力</div>
           <div>緑端子：家側出力</div>
-          <div>風車・容量・接続上限を確認</div>
+          <div>手数・風車・容量・接続上限を確認</div>
           <div>盤面が大きい時は盤面内をスクロール</div>
         </div>
       </aside>
@@ -1120,10 +1125,10 @@
 
     const difficultyStatus = document.getElementById("difficulty-status");
     const powerStatus = document.getElementById("power-status");
+    const actionStatus = document.getElementById("action-status");
     const windmillLimitStatus = document.getElementById("windmill-limit-status");
     const capacityStatus = document.getElementById("capacity-status");
     const inputLimitStatus = document.getElementById("input-limit-status");
-    const actionStatus = document.getElementById("action-status");
     const rankStatus = document.getElementById("rank-status");
     const clearStatus = document.getElementById("clear-status");
     const stageTitle = document.getElementById("stage-title");
@@ -1238,7 +1243,7 @@
       const houseCell = getCell(stage.house.row, stage.house.col);
       houseCell.innerHTML = createHouseHTML();
 
-      if (state.deliveredPower >= stage.targetPower) {
+      if (state.cleared) {
         houseCell.classList.add("powered-house");
       }
 
@@ -1535,12 +1540,12 @@
       const stage = getStage();
 
       if (stageCleared) {
-        showMessage("この難易度はクリア済みです。次へ進めます。");
+        showMessage("この難易度はクリア済みです。次へ進むか、やり直してください。");
         return false;
       }
 
       if (actions >= stage.maxActions) {
-        showMessage("行動回数が上限です。やり直してください。", "error");
+        showMessage("手数が上限です。やり直してください。", "error");
         return false;
       }
 
@@ -1617,13 +1622,18 @@
         deliveredPower += delivered;
       });
 
+      const hasValidSupply =
+        generatedPower > 0 &&
+        acceptedPower > 0 &&
+        deliveredPower >= stage.targetPower;
+
       return {
         generatedPower,
         acceptedPower,
         deliveredPower,
         lossPower,
         connectedCells,
-        cleared: deliveredPower >= stage.targetPower
+        cleared: hasValidSupply
       };
     }
 
@@ -1950,10 +1960,10 @@
 
       difficultyStatus.textContent = stage.difficulty;
       powerStatus.textContent = `${state.deliveredPower} / ${stage.targetPower}`;
+      actionStatus.textContent = `${actions} / ${stage.maxActions}`;
       windmillLimitStatus.textContent = `${countType("windmill")} / ${stage.maxWindmills}`;
       capacityStatus.textContent = `${usage.totalAcceptedPower} / ${usage.totalCapacity}`;
       inputLimitStatus.textContent = `${usage.totalConnectedWindmills} / ${usage.totalInputLimit}`;
-      actionStatus.textContent = `${actions} / ${stage.maxActions}`;
 
       if (state.cleared) {
         rankStatus.textContent = `${rank} ${score}点`;
@@ -1987,23 +1997,27 @@
     }
 
     function autoCheckClear(state) {
+      if (!state.cleared) {
+        stageCleared = false;
+        nextButton.disabled = true;
+        return;
+      }
+
       if (stageCleared) {
         return;
       }
 
-      if (state.cleared) {
-        stageCleared = true;
+      stageCleared = true;
 
-        const rank = getRank(state);
-        const score = getScore(state);
+      const rank = getRank(state);
+      const score = getScore(state);
 
-        if (currentStageIndex < stages.length - 1) {
-          nextButton.disabled = false;
-          showMessage(`クリア！ 評価は ${rank}、${score}点です。次へ進めます。`);
-        } else {
-          nextButton.disabled = true;
-          showMessage(`全難易度クリア！ 最終評価は ${rank}、${score}点です。`);
-        }
+      if (currentStageIndex < stages.length - 1) {
+        nextButton.disabled = false;
+        showMessage(`クリア！ 評価は ${rank}、${score}点です。次へ進めます。`);
+      } else {
+        nextButton.disabled = true;
+        showMessage(`全難易度クリア！ 最終評価は ${rank}、${score}点です。`);
       }
     }
 
@@ -2112,7 +2126,7 @@
         return sum + (substation.maxInputWindmills ?? 0);
       }, 0);
 
-      showMessage(`やり直しました。風車は最大${stage.maxWindmills}基、接続上限は合計${totalInputLimit}基です。`);
+      showMessage(`やり直しました。風車は最大${stage.maxWindmills}基、手数は最大${stage.maxActions}回、接続上限は合計${totalInputLimit}基です。`);
       initializeBoard();
     }
 
