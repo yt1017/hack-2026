@@ -1,0 +1,2137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>レトロ電力パズル</title>
+
+  <style>
+    :root {
+      --panel: #1b2638;
+      --panel2: #26384d;
+      --line: #f6d365;
+      --text: #fff6d5;
+      --green: #63e6be;
+      --blue: #74c0fc;
+      --red: #ff8787;
+      --amber: #ffd43b;
+
+      --grass: #2f5d3a;
+      --forest: #173f2a;
+      --mountain: #5b6170;
+      --house: #b7791f;
+      --substation: #2f4858;
+
+      --board-size: 5;
+      --board-min: 500px;
+
+      --header-height: 44px;
+      --status-height: 58px;
+      --mission-height: 42px;
+      --message-height: 36px;
+      --gap: 6px;
+      --sidebar-width: 184px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    body {
+      user-select: none;
+      color: var(--text);
+      font-family: "MS Gothic", "Courier New", monospace;
+      background:
+        radial-gradient(circle, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(135deg, #09111f, #172033 45%, #0b1020);
+      background-size: 8px 8px, auto;
+      image-rendering: pixelated;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.035) 0px,
+          rgba(255,255,255,0.035) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      opacity: 0.42;
+      z-index: 9999;
+    }
+
+    .game-shell {
+      width: 100vw;
+      height: 100vh;
+      padding: 8px;
+      display: grid;
+      grid-template-rows:
+        var(--header-height)
+        var(--status-height)
+        var(--mission-height)
+        minmax(0, 1fr)
+        var(--message-height);
+      gap: var(--gap);
+      overflow: hidden;
+    }
+
+    .retro-panel {
+      position: relative;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.05), transparent),
+        var(--panel);
+      border: 3px solid var(--line);
+      box-shadow:
+        4px 4px 0 #000,
+        inset 2px 2px 0 rgba(255,255,255,0.08),
+        inset -2px -2px 0 rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+
+    .retro-panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.03) 0 2px,
+          transparent 2px 6px
+        );
+      opacity: 0.45;
+    }
+
+    .retro-card {
+      position: relative;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.04) 0 2px,
+          transparent 2px 5px
+        ),
+        var(--panel2);
+      border: 2px solid #050816;
+      box-shadow:
+        3px 3px 0 #000,
+        inset 2px 2px 0 rgba(255,255,255,0.08);
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .retro-button {
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.05) 0 2px,
+          transparent 2px 5px
+        ),
+        #263849;
+      color: var(--text);
+      border: 2px solid var(--line);
+      box-shadow: 3px 3px 0 #000;
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      transition: 0.04s;
+      min-height: 32px;
+    }
+
+    .retro-button:hover:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow: 2px 2px 0 #000;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.08) 0 2px,
+          transparent 2px 5px
+        ),
+        #31465c;
+    }
+
+    .retro-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .top-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 12px;
+    }
+
+    .top-title h1 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: 0.06em;
+      color: var(--line);
+      text-shadow:
+        3px 3px 0 #000,
+        0 0 8px rgba(246,211,101,0.45);
+      white-space: nowrap;
+      position: relative;
+      z-index: 2;
+    }
+
+    .top-title p {
+      margin: 0;
+      font-size: 11px;
+      color: #fff0b3;
+      white-space: nowrap;
+      position: relative;
+      z-index: 2;
+    }
+
+    .top-badge {
+      position: relative;
+      z-index: 2;
+      border: 2px solid var(--green);
+      color: var(--green);
+      background: #07131a;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      padding: 6px;
+    }
+
+    .status-card {
+      padding: 4px 3px;
+      text-align: center;
+    }
+
+    .status-label {
+      font-size: 9px;
+      color: #ffe08a;
+      font-weight: 900;
+      white-space: nowrap;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .status-value {
+      font-size: clamp(12px, 1.45vw, 17px);
+      font-weight: 900;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .mission-box {
+      padding: 5px 10px;
+    }
+
+    .mission-title {
+      position: relative;
+      z-index: 2;
+      color: var(--line);
+      font-weight: 900;
+      font-size: 13px;
+      text-shadow: 2px 2px 0 #000;
+      white-space: nowrap;
+    }
+
+    .mission-text {
+      position: relative;
+      z-index: 2;
+      font-size: 11px;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #fff6d5;
+    }
+
+    .main-area {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    .toolbox {
+      padding: 8px;
+      display: grid;
+      grid-template-rows: 20px 92px 84px 32px 32px 32px minmax(0, 1fr);
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .toolbox h2 {
+      margin: 0;
+      font-size: 14px;
+      color: var(--line);
+      text-shadow: 2px 2px 0 #000;
+      position: relative;
+      z-index: 2;
+    }
+
+    .tool-item {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .tool-item:active {
+      cursor: grabbing;
+    }
+
+    .tool-title {
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 900;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .tool-sub {
+      margin-top: 1px;
+      font-size: 9px;
+      color: #fff0b3;
+    }
+
+    .help-text {
+      position: relative;
+      z-index: 2;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #fff0b3;
+      overflow: hidden;
+    }
+
+    .board-panel {
+      min-width: 0;
+      min-height: 0;
+      padding: 8px;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      scrollbar-width: thin;
+    }
+
+    #game-board {
+      width: min(
+        max(
+          var(--board-min),
+          min(
+            calc(100vw - var(--sidebar-width) - 40px),
+            calc(100vh - var(--header-height) - var(--status-height) - var(--mission-height) - var(--message-height) - 52px)
+          )
+        ),
+        820px
+      );
+
+      aspect-ratio: 1 / 1;
+
+      display: grid;
+      grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--board-size), minmax(0, 1fr));
+      gap: clamp(2px, 0.4vmin, 5px);
+
+      background: #050816;
+      padding: clamp(4px, 0.7vmin, 8px);
+      border: 4px solid #000;
+      box-shadow:
+        5px 5px 0 #000,
+        inset 0 0 0 3px #2b2f44;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    .cell {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      border: clamp(1px, 0.3vmin, 3px) solid #050816;
+      box-shadow:
+        inset 2px 2px 0 rgba(255,255,255,0.08),
+        inset -2px -2px 0 rgba(0,0,0,0.28);
+    }
+
+    .grass {
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.07) 0 4px,
+          transparent 4px 8px
+        ),
+        var(--grass);
+    }
+
+    .forest {
+      background:
+        radial-gradient(circle at 28% 55%, #0f2f22 0 14%, transparent 15%),
+        radial-gradient(circle at 52% 42%, #14532d 0 19%, transparent 20%),
+        radial-gradient(circle at 72% 58%, #166534 0 14%, transparent 15%),
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.04) 0 3px,
+          transparent 3px 7px
+        ),
+        var(--forest);
+    }
+
+    .mountain {
+      background:
+        linear-gradient(135deg, transparent 36%, rgba(255,255,255,0.22) 38% 50%, transparent 52%),
+        linear-gradient(45deg, #2f3542 0 45%, #555b66 46% 68%, #9ca3af 69%);
+    }
+
+    .house {
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.06) 0 3px,
+          transparent 3px 7px
+        ),
+        var(--house);
+    }
+
+    .substation-tile {
+      background:
+        repeating-linear-gradient(
+          90deg,
+          rgba(255,255,255,0.08) 0 5px,
+          transparent 5px 10px
+        ),
+        var(--substation);
+    }
+
+    .connected {
+      box-shadow:
+        inset 0 0 0 clamp(3px, 0.55vmin, 5px) var(--green),
+        0 0 12px rgba(99, 230, 190, 0.8);
+    }
+
+    .selected {
+      outline: clamp(3px, 0.55vmin, 5px) solid var(--amber);
+      outline-offset: calc(clamp(3px, 0.55vmin, 5px) * -1);
+    }
+
+    .drop-hover {
+      outline: clamp(3px, 0.55vmin, 5px) solid #00ff99;
+      outline-offset: calc(clamp(3px, 0.55vmin, 5px) * -1);
+    }
+
+    .powered-house {
+      animation: pulseHouse 1s steps(2, end) infinite;
+      box-shadow:
+        inset 0 0 0 clamp(3px, 0.55vmin, 5px) var(--amber),
+        0 0 18px rgba(255, 212, 59, 0.9);
+    }
+
+    @keyframes pulseHouse {
+      0% { filter: brightness(1); }
+      50% { filter: brightness(1.45); }
+      100% { filter: brightness(1); }
+    }
+
+    .wind-turbine {
+      width: 70%;
+      height: 70%;
+      position: relative;
+      cursor: grab;
+      z-index: 8;
+    }
+
+    .wind-turbine:active {
+      cursor: grabbing;
+    }
+
+    .turbine-tower {
+      position: absolute;
+      left: 47%;
+      top: 50%;
+      width: 10%;
+      height: 50%;
+      background: #d1d5db;
+      border: clamp(1px, 0.26vmin, 2px) solid #050816;
+      z-index: 2;
+    }
+
+    .turbine-hub {
+      position: absolute;
+      left: 35%;
+      top: 25%;
+      width: 30%;
+      height: 30%;
+      background: #f8fafc;
+      border: clamp(2px, 0.38vmin, 3px) solid #050816;
+      border-radius: 50%;
+      z-index: 7;
+    }
+
+    .blade {
+      position: absolute;
+      left: 47%;
+      top: 40%;
+      width: 10%;
+      height: 46%;
+      background: #f8fafc;
+      border: clamp(1px, 0.26vmin, 2px) solid #050816;
+      transform-origin: 50% 0;
+      z-index: 5;
+    }
+
+    .blade.b1 { transform: rotate(0deg); }
+    .blade.b2 { transform: rotate(120deg); }
+    .blade.b3 { transform: rotate(240deg); }
+
+    .tool-item .wind-turbine {
+      width: 48px;
+      height: 48px;
+      flex: 0 0 auto;
+    }
+
+    .tool-item .turbine-tower,
+    .tool-item .blade {
+      border-width: 2px;
+    }
+
+    .tool-item .turbine-hub {
+      border-width: 3px;
+    }
+
+    .substation {
+      width: 70%;
+      height: 70%;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(255,255,255,0.09) 0 3px,
+          transparent 3px 7px
+        ),
+        #94a3b8;
+      border: clamp(2px, 0.38vmin, 3px) solid #050816;
+      position: relative;
+      box-shadow: 3px 3px 0 #000;
+      z-index: 6;
+    }
+
+    .substation::before {
+      content: "";
+      position: absolute;
+      left: 18%;
+      top: 18%;
+      width: 14%;
+      height: 60%;
+      background: #334155;
+      box-shadow:
+        150% 0 0 #334155,
+        300% 0 0 #334155;
+    }
+
+    .substation::after {
+      content: "変";
+      position: absolute;
+      left: 50%;
+      bottom: -18%;
+      transform: translateX(-50%);
+      background: #050816;
+      color: var(--line);
+      font-size: clamp(7px, 0.95vmin, 9px);
+      font-weight: 900;
+      padding: 1px 5px;
+      border: 2px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .substation-terminal {
+      position: absolute;
+      width: 18%;
+      height: 18%;
+      background: #050816;
+      border: 2px solid var(--line);
+      z-index: 12;
+    }
+
+    .substation-terminal.input {
+      border-color: var(--blue);
+      box-shadow: 0 0 8px rgba(116, 192, 252, 0.8);
+    }
+
+    .substation-terminal.output {
+      border-color: var(--green);
+      box-shadow: 0 0 8px rgba(99, 230, 190, 0.8);
+    }
+
+    .substation-terminal.top {
+      left: 41%;
+      top: -8%;
+    }
+
+    .substation-terminal.right {
+      right: -8%;
+      top: 41%;
+    }
+
+    .substation-terminal.bottom {
+      left: 41%;
+      bottom: -8%;
+    }
+
+    .substation-terminal.left {
+      left: -8%;
+      top: 41%;
+    }
+
+    .power-house-wrap {
+      width: 76%;
+      height: 76%;
+      position: relative;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .power-house-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: visible;
+      image-rendering: pixelated;
+    }
+
+    .power-house-label {
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(7px, 0.95vmin, 9px);
+      font-weight: 900;
+      color: #050816;
+      z-index: 12;
+      text-shadow: 1px 1px 0 rgba(255,255,255,0.45);
+      pointer-events: none;
+    }
+
+    .power-line::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: calc(50% - 4px);
+      height: clamp(6px, 1.15vmin, 9px);
+      background: #050816;
+      border: 2px solid var(--line);
+      z-index: 5;
+    }
+
+    .power-line.vertical::before {
+      top: 8%;
+      bottom: 8%;
+      left: calc(50% - 4px);
+      right: auto;
+      width: clamp(6px, 1.15vmin, 9px);
+      height: auto;
+    }
+
+    .power-line.cross::before {
+      left: 8%;
+      right: 8%;
+      top: calc(50% - 4px);
+      height: clamp(6px, 1.15vmin, 9px);
+    }
+
+    .power-line.cross::after {
+      content: "";
+      position: absolute;
+      top: 8%;
+      bottom: 8%;
+      left: calc(50% - 4px);
+      width: clamp(6px, 1.15vmin, 9px);
+      background: #050816;
+      border: 2px solid var(--line);
+      z-index: 5;
+    }
+
+    .wind-line {
+      position: absolute;
+      height: clamp(2px, 0.4vmin, 4px);
+      background: rgba(116, 192, 252, 0.55);
+      left: 12%;
+      pointer-events: none;
+    }
+
+    .wind-line.one {
+      top: 30%;
+      width: 68%;
+    }
+
+    .wind-line.two {
+      top: 58%;
+      width: 48%;
+    }
+
+    .wind-value,
+    .terrain-label {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      font-size: clamp(7px, 0.95vmin, 9px);
+      font-weight: 900;
+      background: #050816;
+      border: 2px solid var(--line);
+      padding: 1px 4px;
+      z-index: 4;
+    }
+
+    .wind-value {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .terrain-label {
+      color: var(--line);
+    }
+
+    .power-chip {
+      position: absolute;
+      left: 50%;
+      bottom: -14%;
+      transform: translateX(-50%);
+      background: #050816;
+      color: var(--line);
+      font-size: clamp(7px, 0.95vmin, 9px);
+      font-weight: 900;
+      border: 2px solid var(--line);
+      padding: 1px 4px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    .tool-item .power-chip {
+      font-size: 9px;
+    }
+
+    .message-box {
+      padding: 6px 10px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 1.35;
+      z-index: 2;
+      position: relative;
+    }
+
+    .text-blue { color: var(--blue); }
+    .text-green { color: var(--green); }
+    .text-red { color: var(--red); }
+    .text-yellow { color: var(--line); }
+    .text-muted { color: #aab7cf; }
+
+    .dragging {
+      opacity: 0.45;
+    }
+
+    @media (max-width: 980px) {
+      html,
+      body {
+        height: auto;
+        min-height: 100%;
+        overflow: auto;
+      }
+
+      .game-shell {
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto auto auto auto auto;
+      }
+
+      .top-title {
+        height: auto;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .status-row {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+        height: auto;
+      }
+
+      .main-area {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbox {
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: auto;
+      }
+
+      .toolbox h2,
+      .help-text {
+        display: none;
+      }
+
+      .tool-item {
+        min-height: 86px;
+      }
+
+      #game-board {
+        width: min(max(var(--board-min), 94vw), 760px);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .toolbox {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .retro-button {
+        min-height: 36px;
+      }
+
+      .top-title h1 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game-shell">
+    <header class="top-title retro-panel">
+      <div>
+        <h1>レトロ電力パズル</h1>
+        <p>風車・送電線・変電所をつないで家に電気を届けよう</p>
+      </div>
+      <div class="top-badge">端子版</div>
+    </header>
+
+    <section class="status-row retro-panel">
+      <div class="status-card retro-card">
+        <div class="status-label">難易度</div>
+        <div id="difficulty-status" class="status-value">入門</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">供給</div>
+        <div id="power-status" class="status-value text-blue">0 / 6</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">風車</div>
+        <div id="windmill-limit-status" class="status-value">0 / 2</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">変電容量</div>
+        <div id="capacity-status" class="status-value">0 / 8</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">接続</div>
+        <div id="input-limit-status" class="status-value">0 / 1</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">評価</div>
+        <div id="rank-status" class="status-value text-muted">---</div>
+      </div>
+
+      <div class="status-card retro-card">
+        <div class="status-label">状態</div>
+        <div id="clear-status" class="status-value text-red">未達成</div>
+      </div>
+    </section>
+
+    <section class="mission-box retro-panel">
+      <div id="stage-title" class="mission-title"></div>
+      <div id="stage-mission" class="mission-text"></div>
+    </section>
+
+    <main class="main-area">
+      <aside class="toolbox retro-panel">
+        <h2>道具</h2>
+
+        <div id="tool-windmill" draggable="true" class="tool-item retro-card">
+          <div class="wind-turbine">
+            <div class="turbine-tower"></div>
+            <div class="blade b1"></div>
+            <div class="blade b2"></div>
+            <div class="blade b3"></div>
+            <div class="turbine-hub"></div>
+            <div class="power-chip">自動</div>
+          </div>
+          <div class="tool-title text-blue">風車</div>
+          <div class="tool-sub">発電する</div>
+        </div>
+
+        <div id="tool-line" draggable="true" class="tool-item retro-card">
+          <div style="position:relative; width:62px; height:36px;">
+            <div style="position:absolute; left:4px; right:4px; top:14px; height:9px; background:#050816; border:2px solid var(--line);"></div>
+          </div>
+          <div class="tool-title text-yellow">送電線</div>
+          <div class="tool-sub">電気を運ぶ</div>
+        </div>
+
+        <button onclick="removeSelected()" class="retro-button">撤去</button>
+        <button onclick="resetStage()" class="retro-button">やり直す</button>
+        <button id="next-button" onclick="nextStage()" class="retro-button" disabled>次へ</button>
+
+        <div class="help-text">
+          <div>青端子：風車側入力</div>
+          <div>緑端子：家側出力</div>
+          <div>風車・容量・接続上限を確認</div>
+          <div>盤面が大きい時は盤面内をスクロール</div>
+        </div>
+      </aside>
+
+      <section class="board-panel retro-panel">
+        <div id="game-board"></div>
+      </section>
+    </main>
+
+    <div id="message" class="message-box retro-panel">
+      変電所の青端子に風車側、緑端子に家側の送電線をつないでください。
+    </div>
+  </div>
+
+  <script>
+    const directionDelta = {
+      top: { row: -1, col: 0 },
+      right: { row: 0, col: 1 },
+      bottom: { row: 1, col: 0 },
+      left: { row: 0, col: -1 }
+    };
+
+    const stages = [
+      {
+        difficulty: "入門",
+        title: "入門：端子の基本",
+        mission: "目標6。風3の場所に風車を置き、青端子と緑端子を送電線でつないでください。",
+        size: 5,
+        boardMin: 500,
+        targetPower: 6,
+        maxActions: 12,
+        maxWindmills: 2,
+        substationCapacity: 8,
+        lineLossPerCell: 0.10,
+        idealActions: 8,
+        idealEquipment: 5,
+        house: { row: 2, col: 2 },
+        substations: [
+          { row: 2, col: 0, input: "top", output: "right", maxInputWindmills: 1 }
+        ],
+        terrain: [
+          ["grass", "grass", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "mountain", "grass"],
+          ["substation", "grass", "house", "grass", "grass"],
+          ["grass", "forest", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "grass", "grass"]
+        ],
+        wind: [
+          [3, 3, 2, 2, 2],
+          [3, 3, 2, 0, 2],
+          [0, 3, 0, 2, 2],
+          [2, 1, 3, 3, 2],
+          [2, 3, 3, 2, 2]
+        ]
+      },
+      {
+        difficulty: "簡単",
+        title: "簡単：送電ロス",
+        mission: "目標8。風の強い場所と端子の向きを見て送電線を引いてください。",
+        size: 5,
+        boardMin: 520,
+        targetPower: 8,
+        maxActions: 15,
+        maxWindmills: 3,
+        substationCapacity: 10,
+        lineLossPerCell: 0.14,
+        idealActions: 10,
+        idealEquipment: 7,
+        house: { row: 2, col: 2 },
+        substations: [
+          { row: 2, col: 0, input: "bottom", output: "right", maxInputWindmills: 2 }
+        ],
+        terrain: [
+          ["grass", "grass", "grass", "grass", "grass"],
+          ["grass", "forest", "grass", "mountain", "grass"],
+          ["substation", "grass", "house", "grass", "grass"],
+          ["grass", "mountain", "grass", "forest", "grass"],
+          ["grass", "grass", "grass", "grass", "grass"]
+        ],
+        wind: [
+          [3, 3, 2, 2, 2],
+          [3, 1, 2, 0, 2],
+          [0, 3, 0, 2, 2],
+          [2, 0, 3, 1, 2],
+          [2, 3, 3, 2, 2]
+        ]
+      },
+      {
+        difficulty: "普通",
+        title: "普通：広い盤面",
+        mission: "目標11。6×6の盤面です。端子位置と送電距離を両方考えてください。",
+        size: 6,
+        boardMin: 600,
+        targetPower: 11,
+        maxActions: 20,
+        maxWindmills: 4,
+        substationCapacity: 13,
+        lineLossPerCell: 0.16,
+        idealActions: 14,
+        idealEquipment: 10,
+        house: { row: 5, col: 5 },
+        substations: [
+          { row: 1, col: 2, input: "left", output: "bottom", maxInputWindmills: 2 }
+        ],
+        terrain: [
+          ["grass", "grass", "grass", "grass", "grass", "grass"],
+          ["forest", "grass", "substation", "mountain", "grass", "grass"],
+          ["grass", "grass", "grass", "grass", "grass", "grass"],
+          ["grass", "mountain", "forest", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "grass", "forest", "grass"],
+          ["grass", "grass", "grass", "grass", "grass", "house"]
+        ],
+        wind: [
+          [4, 4, 3, 2, 2, 2],
+          [1, 3, 0, 0, 2, 3],
+          [3, 3, 2, 3, 2, 3],
+          [2, 0, 1, 3, 3, 2],
+          [2, 2, 3, 2, 1, 3],
+          [2, 2, 3, 3, 2, 0]
+        ]
+      },
+      {
+        difficulty: "難しい",
+        title: "難しい：2つの変電所",
+        mission: "目標15。7×7の盤面です。入力端子と出力端子の向きが重要です。",
+        size: 7,
+        boardMin: 690,
+        targetPower: 15,
+        maxActions: 26,
+        maxWindmills: 5,
+        substationCapacity: 10,
+        lineLossPerCell: 0.17,
+        idealActions: 18,
+        idealEquipment: 13,
+        house: { row: 3, col: 3 },
+        substations: [
+          { row: 0, col: 6, input: "left", output: "bottom", maxInputWindmills: 3 },
+          { row: 6, col: 0, input: "right", output: "top", maxInputWindmills: 3 }
+        ],
+        terrain: [
+          ["grass", "grass", "forest", "grass", "grass", "grass", "substation"],
+          ["grass", "mountain", "grass", "grass", "forest", "grass", "grass"],
+          ["grass", "grass", "grass", "mountain", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "house", "mountain", "grass", "grass"],
+          ["grass", "forest", "grass", "grass", "grass", "forest", "grass"],
+          ["grass", "grass", "grass", "mountain", "grass", "grass", "grass"],
+          ["substation", "grass", "grass", "grass", "grass", "grass", "grass"]
+        ],
+        wind: [
+          [4, 3, 1, 3, 4, 3, 0],
+          [3, 0, 4, 3, 1, 3, 2],
+          [2, 3, 4, 0, 3, 3, 4],
+          [2, 3, 3, 0, 0, 3, 3],
+          [3, 1, 4, 3, 3, 1, 2],
+          [3, 4, 3, 0, 4, 3, 2],
+          [0, 3, 4, 3, 3, 2, 2]
+        ]
+      },
+      {
+        difficulty: "超難しい",
+        title: "超難しい：大規模送電",
+        mission: "目標18。8×8の盤面です。端子、ロス、容量を同時に管理してください。",
+        size: 8,
+        boardMin: 760,
+        targetPower: 18,
+        maxActions: 34,
+        maxWindmills: 6,
+        substationCapacity: 12,
+        lineLossPerCell: 0.18,
+        idealActions: 24,
+        idealEquipment: 17,
+        house: { row: 7, col: 7 },
+        substations: [
+          { row: 0, col: 3, input: "left", output: "bottom", maxInputWindmills: 3 },
+          { row: 4, col: 0, input: "right", output: "bottom", maxInputWindmills: 3 }
+        ],
+        terrain: [
+          ["grass", "grass", "grass", "substation", "grass", "forest", "grass", "grass"],
+          ["grass", "mountain", "grass", "grass", "grass", "grass", "mountain", "grass"],
+          ["grass", "grass", "forest", "grass", "mountain", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "grass", "grass", "forest", "grass", "grass"],
+          ["substation", "grass", "mountain", "grass", "grass", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "grass", "forest", "grass", "mountain", "grass"],
+          ["grass", "forest", "grass", "grass", "grass", "grass", "grass", "grass"],
+          ["grass", "grass", "grass", "mountain", "grass", "grass", "grass", "house"]
+        ],
+        wind: [
+          [4, 4, 3, 0, 3, 1, 3, 2],
+          [3, 0, 4, 4, 3, 3, 0, 3],
+          [3, 3, 1, 4, 0, 3, 4, 3],
+          [2, 3, 4, 4, 3, 1, 3, 3],
+          [0, 4, 0, 3, 4, 3, 3, 2],
+          [3, 3, 4, 3, 1, 4, 0, 3],
+          [3, 1, 3, 4, 4, 3, 3, 2],
+          [2, 3, 3, 0, 4, 4, 3, 0]
+        ]
+      }
+    ];
+
+    let currentStageIndex = 0;
+    let objects = [];
+    let nextId = 1;
+    let draggedData = null;
+    let selectedId = null;
+    let actions = 0;
+    let suppressClick = false;
+    let stageCleared = false;
+
+    const board = document.getElementById("game-board");
+    const toolWindmill = document.getElementById("tool-windmill");
+    const toolLine = document.getElementById("tool-line");
+
+    const difficultyStatus = document.getElementById("difficulty-status");
+    const powerStatus = document.getElementById("power-status");
+    const windmillLimitStatus = document.getElementById("windmill-limit-status");
+    const capacityStatus = document.getElementById("capacity-status");
+    const inputLimitStatus = document.getElementById("input-limit-status");
+    const actionStatus = document.getElementById("action-status");
+    const rankStatus = document.getElementById("rank-status");
+    const clearStatus = document.getElementById("clear-status");
+    const stageTitle = document.getElementById("stage-title");
+    const stageMission = document.getElementById("stage-mission");
+    const message = document.getElementById("message");
+    const nextButton = document.getElementById("next-button");
+
+    function getStage() {
+      return stages[currentStageIndex];
+    }
+
+    function setBoardSize() {
+      const stage = getStage();
+      document.documentElement.style.setProperty("--board-size", stage.size);
+      document.documentElement.style.setProperty("--board-min", `${stage.boardMin}px`);
+    }
+
+    function initializeBoard() {
+      const stage = getStage();
+
+      setBoardSize();
+      board.innerHTML = "";
+
+      for (let row = 0; row < stage.size; row++) {
+        for (let col = 0; col < stage.size; col++) {
+          const cell = document.createElement("div");
+
+          cell.className = getBaseCellClass(row, col);
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+
+          cell.addEventListener("dragover", handleDragOver);
+          cell.addEventListener("dragleave", handleDragLeave);
+          cell.addEventListener("drop", handleDrop);
+          cell.addEventListener("click", () => selectObjectAt(row, col));
+
+          board.appendChild(cell);
+        }
+      }
+
+      renderGame();
+    }
+
+    function getBaseCellClass(row, col) {
+      return ["cell", getTerrainClass(getTerrain(row, col))].join(" ");
+    }
+
+    function getTerrainClass(terrain) {
+      if (terrain === "house") return "house";
+      if (terrain === "substation") return "substation-tile";
+      if (terrain === "forest") return "forest";
+      if (terrain === "mountain") return "mountain";
+      return "grass";
+    }
+
+    function renderGame() {
+      const stage = getStage();
+      const state = calculateGameState();
+
+      for (let row = 0; row < stage.size; row++) {
+        for (let col = 0; col < stage.size; col++) {
+          const cell = getCell(row, col);
+
+          cell.className = getBaseCellClass(row, col);
+          cell.innerHTML = "";
+          renderTerrain(cell, row, col);
+        }
+      }
+
+      state.connectedCells.forEach(key => {
+        const [row, col] = key.split(",").map(Number);
+        const cell = getCell(row, col);
+
+        if (cell) {
+          cell.classList.add("connected");
+        }
+      });
+
+      objects.forEach(object => {
+        const cell = getCell(object.row, object.col);
+
+        if (!cell) {
+          return;
+        }
+
+        if (object.type === "line") {
+          applyLineClasses(cell, object.row, object.col);
+        }
+
+        if (object.type === "windmill") {
+          cell.innerHTML = createWindmillHTML(object);
+
+          const element = cell.querySelector(".wind-turbine");
+          attachWindmillEvents(element, object.id);
+        }
+
+        if (object.id === selectedId) {
+          cell.classList.add("selected");
+        }
+      });
+
+      stage.substations.forEach(substation => {
+        const cell = getCell(substation.row, substation.col);
+
+        if (!cell) {
+          return;
+        }
+
+        cell.innerHTML = createSubstationHTML(substation);
+      });
+
+      const houseCell = getCell(stage.house.row, stage.house.col);
+      houseCell.innerHTML = createHouseHTML();
+
+      if (state.deliveredPower >= stage.targetPower) {
+        houseCell.classList.add("powered-house");
+      }
+
+      updateStatus(state);
+      autoCheckClear(state);
+    }
+
+    function renderTerrain(cell, row, col) {
+      const terrain = getTerrain(row, col);
+      const wind = getWind(row, col);
+
+      if (terrain === "grass") {
+        cell.innerHTML = `
+          <div class="wind-line one"></div>
+          <div class="wind-line two"></div>
+          <div class="wind-value">風${wind}</div>
+        `;
+      }
+
+      if (terrain === "forest") {
+        cell.innerHTML = `<div class="terrain-label">森</div>`;
+      }
+
+      if (terrain === "mountain") {
+        cell.innerHTML = `<div class="terrain-label">山</div>`;
+      }
+    }
+
+    function createHouseHTML() {
+      return `
+        <div class="power-house-wrap">
+          <svg
+            class="power-house-svg"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+          >
+            <polygon
+              points="50,8 90,42 10,42"
+              fill="#f59e0b"
+              stroke="#050816"
+              stroke-width="5"
+              stroke-linejoin="round"
+            ></polygon>
+
+            <rect
+              x="22"
+              y="40"
+              width="56"
+              height="46"
+              fill="#fef3c7"
+              stroke="#050816"
+              stroke-width="5"
+            ></rect>
+
+            <rect
+              x="44"
+              y="61"
+              width="14"
+              height="25"
+              fill="#92400e"
+              stroke="#050816"
+              stroke-width="3"
+            ></rect>
+
+            <rect
+              x="29"
+              y="53"
+              width="12"
+              height="12"
+              fill="#74c0fc"
+              stroke="#050816"
+              stroke-width="3"
+            ></rect>
+
+            <rect
+              x="59"
+              y="53"
+              width="12"
+              height="12"
+              fill="#74c0fc"
+              stroke="#050816"
+              stroke-width="3"
+            ></rect>
+          </svg>
+        </div>
+        <div class="power-house-label">家</div>
+      `;
+    }
+
+    function createWindmillHTML(windmill) {
+      const power = getWindmillGeneratedPower(windmill);
+
+      return `
+        <div class="wind-turbine" draggable="true" data-id="${windmill.id}">
+          <div class="turbine-tower"></div>
+          <div class="blade b1"></div>
+          <div class="blade b2"></div>
+          <div class="blade b3"></div>
+          <div class="turbine-hub"></div>
+          <div class="power-chip">${power}kW</div>
+        </div>
+      `;
+    }
+
+    function createSubstationHTML(substation) {
+      return `
+        <div class="substation pointer-events-none">
+          <div class="substation-terminal input ${substation.input}"></div>
+          <div class="substation-terminal output ${substation.output}"></div>
+        </div>
+      `;
+    }
+
+    function attachWindmillEvents(element, id) {
+      element.addEventListener("click", event => {
+        event.stopPropagation();
+
+        if (suppressClick) {
+          return;
+        }
+
+        selectedId = id;
+        showMessage("風車を選択しました。撤去できます。");
+        renderGame();
+      });
+
+      element.addEventListener("dragstart", event => {
+        event.stopPropagation();
+
+        draggedData = { type: "existing", id };
+        selectedId = id;
+        suppressClick = true;
+
+        event.currentTarget.classList.add("dragging");
+        event.dataTransfer.setData("text/plain", String(id));
+        event.dataTransfer.effectAllowed = "move";
+      });
+
+      element.addEventListener("dragend", event => {
+        event.currentTarget.classList.remove("dragging");
+        draggedData = null;
+
+        setTimeout(() => {
+          suppressClick = false;
+        }, 50);
+      });
+    }
+
+    function setupToolDrag(toolElement, objectType) {
+      toolElement.addEventListener("dragstart", event => {
+        draggedData = { type: "new", objectType };
+        suppressClick = true;
+
+        event.dataTransfer.setData("text/plain", objectType);
+        event.dataTransfer.effectAllowed = "copy";
+      });
+
+      toolElement.addEventListener("dragend", () => {
+        draggedData = null;
+
+        setTimeout(() => {
+          suppressClick = false;
+        }, 50);
+      });
+    }
+
+    setupToolDrag(toolWindmill, "windmill");
+    setupToolDrag(toolLine, "line");
+
+    function handleDragOver(event) {
+      event.preventDefault();
+
+      const row = Number(event.currentTarget.dataset.row);
+      const col = Number(event.currentTarget.dataset.col);
+
+      if (canDropAt(row, col)) {
+        event.currentTarget.classList.add("drop-hover");
+      }
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove("drop-hover");
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+
+      const cell = event.currentTarget;
+      cell.classList.remove("drop-hover");
+
+      const row = Number(cell.dataset.row);
+      const col = Number(cell.dataset.col);
+
+      if (!draggedData) {
+        return;
+      }
+
+      if (!canDropAt(row, col)) {
+        showMessage("そこには配置できません。空いている草地に置いてください。", "error");
+        return;
+      }
+
+      if (!canUseAction()) {
+        return;
+      }
+
+      if (draggedData.type === "new") {
+        addNewObject(draggedData.objectType, row, col);
+      }
+
+      if (draggedData.type === "existing") {
+        const object = objects.find(item => item.id === draggedData.id);
+
+        if (!object) {
+          return;
+        }
+
+        if (object.row !== row || object.col !== col) {
+          object.row = row;
+          object.col = col;
+          selectedId = object.id;
+          actions++;
+          showMessage("風車を移動しました。");
+        }
+      }
+
+      draggedData = null;
+      renderGame();
+    }
+
+    function addNewObject(type, row, col) {
+      const stage = getStage();
+
+      if (type === "windmill" && countType("windmill") >= stage.maxWindmills) {
+        showMessage(`この難易度では風車は${stage.maxWindmills}基までです。`, "error");
+        return;
+      }
+
+      const object = {
+        id: nextId++,
+        type,
+        row,
+        col
+      };
+
+      objects.push(object);
+      selectedId = object.id;
+      actions++;
+
+      if (type === "windmill") {
+        showMessage("風車を配置しました。");
+      }
+
+      if (type === "line") {
+        showMessage("送電線を配置しました。");
+      }
+    }
+
+    function removeSelected() {
+      if (selectedId === null) {
+        showMessage("撤去する設備を選択してください。", "error");
+        return;
+      }
+
+      if (!canUseAction()) {
+        return;
+      }
+
+      const before = objects.length;
+      objects = objects.filter(item => item.id !== selectedId);
+
+      if (objects.length !== before) {
+        selectedId = null;
+        actions++;
+        showMessage("選択中の設備を撤去しました。");
+        renderGame();
+      }
+    }
+
+    function selectObjectAt(row, col) {
+      const object = getObjectAt(row, col);
+
+      if (!object) {
+        return;
+      }
+
+      selectedId = object.id;
+      showMessage("設備を選択しました。撤去できます。");
+      renderGame();
+    }
+
+    function canUseAction() {
+      const stage = getStage();
+
+      if (stageCleared) {
+        showMessage("この難易度はクリア済みです。次へ進めます。");
+        return false;
+      }
+
+      if (actions >= stage.maxActions) {
+        showMessage("行動回数が上限です。やり直してください。", "error");
+        return false;
+      }
+
+      return true;
+    }
+
+    function applyLineClasses(cell, row, col) {
+      getLineClasses(row, col).forEach(className => {
+        cell.classList.add(className);
+      });
+    }
+
+    function getLineClasses(row, col) {
+      const horizontal = isNetworkVisible(row, col - 1) || isNetworkVisible(row, col + 1);
+      const vertical = isNetworkVisible(row - 1, col) || isNetworkVisible(row + 1, col);
+
+      if (horizontal && vertical) return ["power-line", "cross"];
+      if (vertical) return ["power-line", "vertical"];
+      return ["power-line"];
+    }
+
+    function calculateGameState() {
+      const stage = getStage();
+
+      const connectedCells = getCellsConnectedToHouse();
+
+      let generatedPower = 0;
+      let acceptedPower = 0;
+      let deliveredPower = 0;
+      let lossPower = 0;
+
+      const countedWindmills = new Set();
+
+      stage.substations.forEach(substation => {
+        if (
+          !isLineConnectedToSubstationInput(substation) ||
+          !isLineConnectedToSubstationOutput(substation)
+        ) {
+          return;
+        }
+
+        const distance = getDistanceToHouse(substation);
+
+        if (distance === 99) {
+          return;
+        }
+
+        const connectedWindmills = getWindmillsConnectedToSubstation(substation);
+        const inputLimit = substation.maxInputWindmills ?? Infinity;
+        const limitedWindmills = connectedWindmills.slice(0, inputLimit);
+
+        let substationInput = 0;
+
+        limitedWindmills.forEach(windmill => {
+          if (countedWindmills.has(windmill.id)) {
+            return;
+          }
+
+          const power = getWindmillGeneratedPower(windmill);
+
+          generatedPower += power;
+          substationInput += power;
+          countedWindmills.add(windmill.id);
+        });
+
+        const accepted = Math.min(substationInput, stage.substationCapacity);
+        acceptedPower += accepted;
+
+        const rawLoss = distance * stage.lineLossPerCell;
+        const loss = Math.min(accepted * 0.55, rawLoss);
+        const delivered = Math.max(0, Math.round(accepted - loss));
+
+        lossPower += Math.round(loss * 10) / 10;
+        deliveredPower += delivered;
+      });
+
+      return {
+        generatedPower,
+        acceptedPower,
+        deliveredPower,
+        lossPower,
+        connectedCells,
+        cleared: deliveredPower >= stage.targetPower
+      };
+    }
+
+    function getCellsConnectedToHouse() {
+      const stage = getStage();
+      const visited = new Set();
+      const queue = [{ row: stage.house.row, col: stage.house.col }];
+
+      visited.add(keyOf(stage.house.row, stage.house.col));
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+
+        neighbors(current.row, current.col).forEach(next => {
+          if (!isInside(next.row, next.col)) {
+            return;
+          }
+
+          const key = keyOf(next.row, next.col);
+
+          if (visited.has(key)) {
+            return;
+          }
+
+          const object = getObjectAt(next.row, next.col);
+          const isLine = object?.type === "line";
+          const isSub = isSubstation(next.row, next.col);
+
+          if (isLine || isSub) {
+            visited.add(key);
+            queue.push({ row: next.row, col: next.col });
+          }
+        });
+      }
+
+      return visited;
+    }
+
+    function getWindmillsConnectedToSubstation(substation) {
+      if (!isLineConnectedToSubstationInput(substation)) {
+        return [];
+      }
+
+      const inputStart = getAdjacentByDirection(
+        substation.row,
+        substation.col,
+        substation.input
+      );
+
+      const visited = new Set();
+      const queue = [{ row: inputStart.row, col: inputStart.col }];
+      const found = [];
+
+      visited.add(keyOf(inputStart.row, inputStart.col));
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+
+        neighbors(current.row, current.col).forEach(next => {
+          if (!isInside(next.row, next.col)) {
+            return;
+          }
+
+          const key = keyOf(next.row, next.col);
+
+          if (visited.has(key)) {
+            return;
+          }
+
+          const object = getObjectAt(next.row, next.col);
+
+          if (object?.type === "windmill") {
+            visited.add(key);
+            found.push(object);
+            return;
+          }
+
+          if (object?.type === "line") {
+            visited.add(key);
+            queue.push({ row: next.row, col: next.col });
+          }
+        });
+      }
+
+      return found;
+    }
+
+    function getDistanceToHouse(substation) {
+      if (!isLineConnectedToSubstationOutput(substation)) {
+        return 99;
+      }
+
+      const outputStart = getAdjacentByDirection(
+        substation.row,
+        substation.col,
+        substation.output
+      );
+
+      const visited = new Set();
+      const queue = [
+        {
+          row: outputStart.row,
+          col: outputStart.col,
+          distance: 1
+        }
+      ];
+
+      visited.add(keyOf(outputStart.row, outputStart.col));
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+
+        if (isHouse(current.row, current.col)) {
+          return current.distance;
+        }
+
+        neighbors(current.row, current.col).forEach(next => {
+          if (!isInside(next.row, next.col)) {
+            return;
+          }
+
+          const key = keyOf(next.row, next.col);
+
+          if (visited.has(key)) {
+            return;
+          }
+
+          const object = getObjectAt(next.row, next.col);
+          const isLine = object?.type === "line";
+          const isTargetHouse = isHouse(next.row, next.col);
+
+          if (isLine || isTargetHouse) {
+            visited.add(key);
+            queue.push({
+              row: next.row,
+              col: next.col,
+              distance: current.distance + 1
+            });
+          }
+        });
+      }
+
+      return 99;
+    }
+
+    function isLineConnectedToSubstationInput(substation) {
+      const inputCell = getAdjacentByDirection(
+        substation.row,
+        substation.col,
+        substation.input
+      );
+
+      if (!isInside(inputCell.row, inputCell.col)) {
+        return false;
+      }
+
+      const object = getObjectAt(inputCell.row, inputCell.col);
+
+      return object?.type === "line";
+    }
+
+    function isLineConnectedToSubstationOutput(substation) {
+      const outputCell = getAdjacentByDirection(
+        substation.row,
+        substation.col,
+        substation.output
+      );
+
+      if (!isInside(outputCell.row, outputCell.col)) {
+        return false;
+      }
+
+      const object = getObjectAt(outputCell.row, outputCell.col);
+
+      return object?.type === "line";
+    }
+
+    function getAdjacentByDirection(row, col, direction) {
+      const delta = directionDelta[direction];
+
+      return {
+        row: row + delta.row,
+        col: col + delta.col
+      };
+    }
+
+    function getWindmillGeneratedPower(windmill) {
+      const wind = getWind(windmill.row, windmill.col);
+      return Math.floor(wind * 2);
+    }
+
+    function getSubstationUsage() {
+      const stage = getStage();
+
+      let totalConnectedWindmills = 0;
+      let totalInputLimit = 0;
+      let totalAcceptedPower = 0;
+      let totalCapacity = 0;
+
+      stage.substations.forEach(substation => {
+        totalInputLimit += substation.maxInputWindmills ?? 0;
+        totalCapacity += stage.substationCapacity;
+
+        if (
+          !isLineConnectedToSubstationInput(substation) ||
+          !isLineConnectedToSubstationOutput(substation)
+        ) {
+          return;
+        }
+
+        const distance = getDistanceToHouse(substation);
+
+        if (distance === 99) {
+          return;
+        }
+
+        const connectedWindmills = getWindmillsConnectedToSubstation(substation);
+        const inputLimit = substation.maxInputWindmills ?? Infinity;
+        const limitedWindmills = connectedWindmills.slice(0, inputLimit);
+
+        totalConnectedWindmills += limitedWindmills.length;
+
+        let inputPower = 0;
+
+        limitedWindmills.forEach(windmill => {
+          inputPower += getWindmillGeneratedPower(windmill);
+        });
+
+        totalAcceptedPower += Math.min(inputPower, stage.substationCapacity);
+      });
+
+      return {
+        totalConnectedWindmills,
+        totalInputLimit,
+        totalAcceptedPower,
+        totalCapacity
+      };
+    }
+
+    function getScore(state) {
+      if (!state.cleared) {
+        return 0;
+      }
+
+      const stage = getStage();
+
+      return Math.round(
+        getPowerScore(state) +
+        getActionScore(stage) +
+        getEquipmentScore(stage) +
+        getLossScore(state)
+      );
+    }
+
+    function getPowerScore(state) {
+      const stage = getStage();
+      const ratio = state.deliveredPower / stage.targetPower;
+
+      if (ratio >= 1.25) return 40;
+      if (ratio >= 1.15) return 37;
+      if (ratio >= 1.05) return 34;
+      return 30;
+    }
+
+    function getActionScore(stage) {
+      if (actions <= stage.idealActions) {
+        return 25;
+      }
+
+      const over = actions - stage.idealActions;
+      const range = Math.max(1, stage.maxActions - stage.idealActions);
+      const penaltyRate = Math.min(1, over / range);
+
+      return Math.round(25 * (1 - penaltyRate));
+    }
+
+    function getEquipmentScore(stage) {
+      const equipmentCount = objects.length;
+
+      if (equipmentCount <= stage.idealEquipment) {
+        return 20;
+      }
+
+      const over = equipmentCount - stage.idealEquipment;
+      const maxUseful = stage.idealEquipment + 8;
+      const range = Math.max(1, maxUseful - stage.idealEquipment);
+      const penaltyRate = Math.min(1, over / range);
+
+      return Math.round(20 * (1 - penaltyRate));
+    }
+
+    function getLossScore(state) {
+      if (state.generatedPower <= 0) {
+        return 0;
+      }
+
+      const lossRate = state.lossPower / state.generatedPower;
+
+      if (lossRate <= 0.10) return 15;
+      if (lossRate <= 0.20) return 12;
+      if (lossRate <= 0.30) return 8;
+      if (lossRate <= 0.40) return 4;
+      return 0;
+    }
+
+    function getRank(state) {
+      if (!state.cleared) {
+        return "---";
+      }
+
+      const score = getScore(state);
+
+      if (score >= 90) return "S";
+      if (score >= 75) return "A";
+      if (score >= 60) return "B";
+      return "C";
+    }
+
+    function updateStatus(state) {
+      const stage = getStage();
+      const rank = getRank(state);
+      const score = getScore(state);
+      const usage = getSubstationUsage();
+
+      difficultyStatus.textContent = stage.difficulty;
+      powerStatus.textContent = `${state.deliveredPower} / ${stage.targetPower}`;
+      windmillLimitStatus.textContent = `${countType("windmill")} / ${stage.maxWindmills}`;
+      capacityStatus.textContent = `${usage.totalAcceptedPower} / ${usage.totalCapacity}`;
+      inputLimitStatus.textContent = `${usage.totalConnectedWindmills} / ${usage.totalInputLimit}`;
+      actionStatus.textContent = `${actions} / ${stage.maxActions}`;
+
+      if (state.cleared) {
+        rankStatus.textContent = `${rank} ${score}点`;
+      } else {
+        rankStatus.textContent = "---";
+      }
+
+      stageTitle.textContent = stage.title;
+      stageMission.textContent = stage.mission;
+
+      powerStatus.className = "status-value";
+      rankStatus.className = "status-value";
+
+      powerStatus.classList.add(state.cleared ? "text-green" : "text-blue");
+
+      if (rank === "S" || rank === "A") {
+        rankStatus.classList.add("text-green");
+      } else if (rank === "B" || rank === "C") {
+        rankStatus.classList.add("text-yellow");
+      } else {
+        rankStatus.classList.add("text-muted");
+      }
+
+      if (state.cleared) {
+        clearStatus.textContent = "達成";
+        clearStatus.className = "status-value text-green";
+      } else {
+        clearStatus.textContent = "未達成";
+        clearStatus.className = "status-value text-red";
+      }
+    }
+
+    function autoCheckClear(state) {
+      if (stageCleared) {
+        return;
+      }
+
+      if (state.cleared) {
+        stageCleared = true;
+
+        const rank = getRank(state);
+        const score = getScore(state);
+
+        if (currentStageIndex < stages.length - 1) {
+          nextButton.disabled = false;
+          showMessage(`クリア！ 評価は ${rank}、${score}点です。次へ進めます。`);
+        } else {
+          nextButton.disabled = true;
+          showMessage(`全難易度クリア！ 最終評価は ${rank}、${score}点です。`);
+        }
+      }
+    }
+
+    function canDropAt(row, col) {
+      const terrain = getTerrain(row, col);
+
+      if (terrain !== "grass") {
+        return false;
+      }
+
+      const occupied = objects.some(object => {
+        if (draggedData?.type === "existing" && object.id === draggedData.id) {
+          return false;
+        }
+
+        return object.row === row && object.col === col;
+      });
+
+      return !occupied;
+    }
+
+    function isNetworkVisible(row, col) {
+      if (!isInside(row, col)) {
+        return false;
+      }
+
+      if (isHouse(row, col) || isSubstation(row, col)) {
+        return true;
+      }
+
+      const object = getObjectAt(row, col);
+
+      return object && (object.type === "line" || object.type === "windmill");
+    }
+
+    function getObjectAt(row, col) {
+      return objects.find(object => object.row === row && object.col === col);
+    }
+
+    function countType(type) {
+      return objects.filter(object => object.type === type).length;
+    }
+
+    function getTerrain(row, col) {
+      return getStage().terrain[row][col];
+    }
+
+    function getWind(row, col) {
+      return getStage().wind[row][col];
+    }
+
+    function getCell(row, col) {
+      return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    }
+
+    function isHouse(row, col) {
+      const house = getStage().house;
+      return row === house.row && col === house.col;
+    }
+
+    function isSubstation(row, col) {
+      return getStage().substations.some(pos => pos.row === row && pos.col === col);
+    }
+
+    function isInside(row, col) {
+      const size = getStage().size;
+      return row >= 0 && row < size && col >= 0 && col < size;
+    }
+
+    function keyOf(row, col) {
+      return `${row},${col}`;
+    }
+
+    function neighbors(row, col) {
+      return [
+        { row: row - 1, col },
+        { row: row + 1, col },
+        { row, col: col - 1 },
+        { row, col: col + 1 }
+      ];
+    }
+
+    function showMessage(text, type = "normal") {
+      message.textContent = text;
+      message.className = "message-box retro-panel";
+
+      if (type === "error") {
+        message.classList.add("text-red");
+      } else {
+        message.classList.add("text-yellow");
+      }
+    }
+
+    function resetStage() {
+      objects = [];
+      nextId = 1;
+      draggedData = null;
+      selectedId = null;
+      actions = 0;
+      suppressClick = false;
+      stageCleared = false;
+      nextButton.disabled = true;
+
+      const stage = getStage();
+      const totalInputLimit = stage.substations.reduce((sum, substation) => {
+        return sum + (substation.maxInputWindmills ?? 0);
+      }, 0);
+
+      showMessage(`やり直しました。風車は最大${stage.maxWindmills}基、接続上限は合計${totalInputLimit}基です。`);
+      initializeBoard();
+    }
+
+    function nextStage() {
+      if (!stageCleared) {
+        showMessage("まだクリアしていません。目標電力を達成してください。", "error");
+        return;
+      }
+
+      if (currentStageIndex < stages.length - 1) {
+        currentStageIndex++;
+        resetStage();
+        showMessage(`${getStage().difficulty}に進みました。`);
+      } else {
+        showMessage("すべての難易度をクリア済みです。");
+      }
+    }
+
+    initializeBoard();
+  </script>
+</body>
+</html>
